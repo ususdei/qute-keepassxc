@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+
+# Qutebrowser userscript to fetch credentials from KeepassXC password database
+# Copyright (c) 2018 Markus Blöchl
+# Released under the MIT License
+
+import sys
+import os
+import socket
+import base64
+import subprocess
+import argparse
+
+import simplejson
+
+import nacl.utils
+import nacl.public
+
+
+if 'QUTE_FIFO' not in os.environ:
+    print("No QUTE_FIFO found")
+    sys.exit(-1)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Full passwords from KeepassXC")
+    parser.add_argument('url', nargs='?', default=os.environ.get('QUTE_URL'))
+    parser.add_argument('--socket', '-s', default='/run/user/{}/kpxc_server'.format(os.getuid()),
+                        help='Path to KeepassXC browser socket')
+    parser.add_argument('--key', '-k', default='alice@example.com',
+                        help='GPG key to encrypt KeepassXC auth key with')
+    parser.add_argument('--insecure', action='store_true',
+                        help="Do not encrypt auth key")
+    return parser.parse_args()
+
+args = parse_args()
+
+
+class KeepassError(Exception):
+    def __init__(self, code, desc):
+        self.code = code
+        self.description = desc
+
+    def __str__(self):
+        return f"KeepassXC Error [{self.code}]: {self.description}"
+
+
+class KeepassXC:
+    """ Wrapper around the KeepassXC socket API """
+    def __init__(self, id=None, *, key, socket_path):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.id = id
+        self.socket_path = socket_path
+        self.my_privkey = nacl.public.PrivateKey.generate()
+        self.kp_pubkey = None
+        self.ep_privkey = nacl.public.PrivateKey.from_seed(key)
+        self.cryptobox = None
+
+    def connect(self):
+        if not os.path.exists(self.socket_path):
+            raise KeepassError(-1, "KeepassXC Browser socket does not exists")
+        self.client_id = base64.b64encode(nacl.utils.random(nacl.public.Box.NONCE_SIZE)).decode('utf-8')
+        self.sock.connect(self.socket_path)
+
+        self.send_raw_msg(dict(
+            action    = 'change-public-keys',
+            publicKey = base64.b64encode(self.my_privkey.public_key.encode()).decode('utf-8'),
+            nonce     = base64.b64encode(nacl.utils.random(nacl.public.Box.NONCE_SIZE)).decode('utf-8'),
+            clientID  = self.client_id
+        ))
+
+        resp = self.recv_raw_msg()
+        assert resp['action'] == 'change-public-keys'
+        assert resp['success'] == 'true'
+        assert resp['nonce']
+        self.cryptobox = nacl.public.Box(
+            self.my_privkey,
+            nacl.public.PublicKey(base64.b64decode(resp['publicKey']))
+        )
+
+    def get_databasehash(self):
+        self.send_msg(dict(action='get-databasehash'))
+        return self.recv_msg()['hash']
+
+    def lock_database(self):
+        self.send_msg(dict(action='lock-database'))
+        try:
+            self.recv_msg()
+        except KeepassError as e:
+            if e.code == 1:
+                return True
+            raise
+        return False
+
+
+    def test_associate(self):
+        if not self.id:
+            return False
+        self.send_msg(dict(
+            action = 'test-associate',
+            id     = self.id,
+            key    = base64.b64encode(self.ep_privkey.public_key.encode()).decode('utf-8')
+        ))
+        return self.recv_msg()['success'] == 'true'
+
+    def associate(self):
+        self.send_msg(dict(
+            action = 'associate',
+            key    = base64.b64encode(self.my_privkey.public_key.encode()).decode('utf-8'),
+            idKey  = base64.b64encode(self.ep_privkey.public_key.encode()).decode('utf-8')
+        ))
+        resp = self.recv_msg()
+        self.id = resp['id']
+
+    def get_logins(self, url):
+        self.send_msg(dict(
+            action = 'get-logins',
+            url    = url,
+            keys   = [{ 'id': self.id, 'key': base64.b64encode(self.my_privkey.public_key.encode()).decode('utf-8') }]
+        ))
+        return self.recv_msg()['entries']
+
+    def send_raw_msg(self, msg):
+        self.sock.send( simplejson.dumps(msg).encode('utf-8') )
+
+    def recv_raw_msg(self):
+        return simplejson.loads( self.sock.recv(4096).decode('utf-8') )
+
+    def send_msg(self, msg, **extra):
+        nonce = nacl.utils.random(nacl.public.Box.NONCE_SIZE)
+        self.send_raw_msg(dict(
+            action   = msg['action'],
+            message  = base64.b64encode(self.cryptobox.encrypt(simplejson.dumps(msg).encode('utf-8'), nonce).ciphertext),
+            nonce    = base64.b64encode(nonce),
+            clientID = self.client_id,
+            **extra
+        ))
+
+    def recv_msg(self):
+        resp = self.recv_raw_msg()
+        if 'error' in resp:
+            raise KeepassError(resp['errorCode'], resp['error'])
+        assert resp['action']
+        return simplejson.loads(self.cryptobox.decrypt(base64.b64decode(resp['message']), base64.b64decode(resp['nonce'])))
+
+
+
+class SecretKeyStore:
+    def __init__(self, gpgkey):
+        self.gpgkey = gpgkey
+        if gpgkey is None:
+            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], 'keepassxc.key')
+        else:
+            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], 'keepassxc.key.gpg')
+
+    def load(self):
+        "Load existing association key from file"
+        if self.gpgkey is None:
+            json = open(self.path, 'r').read()
+        else:
+            json = subprocess.check_output(['gpg', '--decrypt', self.path])
+        data = simplejson.loads(json)
+        self.id = data['id']
+        self.key = base64.b64decode(data['key'])
+
+    def create(self):
+        "Create new association key"
+        self.key = nacl.utils.random(32)
+        self.id = None
+
+    def store(self, id):
+        "Store newly created association key in file"
+        self.id = id
+        json = simplejson.dumps({'id':self.id, 'key':base64.b64encode(self.key)}).encode('utf-8')
+        if self.gpgkey is None:
+            open(self.path, "w").write(json)
+        else:
+            subprocess.run(['gpg', '--encrypt', '-o', self.path, '-r', self.gpgkey], input=json, check=True)
+
+
+def qute(cmd):
+    with open(os.environ['QUTE_FIFO'], 'w') as fifo:
+        fifo.write(cmd)
+        fifo.write('\n')
+        fifo.flush()
+
+def error(msg):
+    print(msg, file=sys.stderr)
+    qute('message-error "{}"'.format(msg))
+
+
+def run_keepassxc_query(url):
+    assert args.key or args.insecure, "Missing GPG key to use for auth key encryption"
+    assert url, "Missing URL"
+    keystore = SecretKeyStore(args.key)
+    if os.path.isfile(keystore.path):
+        keystore.load()
+        kp = KeepassXC(keystore.id, key=keystore.key, socket_path=args.socket)
+        kp.connect()
+        if not kp.test_associate():
+            error('No KeepassXC association')
+            return None, None
+    else:
+        keystore.create()
+        kp = KeepassXC(key=keystore.key, socket_path=args.socket)
+        kp.connect()
+        kp.associate()
+        if not kp.test_associate():
+            error('No KeepassXC association')
+            return None, None
+        keystore.store(kp.id)
+    creds = kp.get_logins(url)
+    if not creds:
+        error('No credentials found')
+        return None, None
+    # TODO: handle multiple matches
+    return (creds[0]['login'], creds[0]['password'])
+
+
+def make_js_code(username, password):
+    return ' '.join("""
+        function isVisible(elem) {
+            var style = elem.ownerDocument.defaultView.getComputedStyle(elem, null);
+
+            if (style.getPropertyValue("visibility") !== "visible" ||
+                style.getPropertyValue("display") === "none" ||
+                style.getPropertyValue("opacity") === "0") {
+                return false;
+            }
+
+            return elem.offsetWidth > 0 && elem.offsetHeight > 0;
+        };
+        function hasPasswordField(form) {
+            var inputs = form.getElementsByTagName("input");
+            for (var j = 0; j < inputs.length; j++) {
+                var input = inputs[j];
+                if (input.type == "password") {
+                    return true;
+                }
+            }
+            return false;
+        };
+        function loadData2Form (form) {
+            var inputs = form.getElementsByTagName("input");
+            for (var j = 0; j < inputs.length; j++) {
+                var input = inputs[j];
+                if (isVisible(input) && (input.type == "text" || input.type == "email")) {
+                    input.focus();
+                    input.value = %s;
+                    input.blur();
+                }
+                if (input.type == "password") {
+                    input.focus();
+                    input.value = %s;
+                    input.blur();
+                }
+            }
+        };
+
+        function fillFirstForm() {
+            var forms = document.getElementsByTagName("form");
+            for (i = 0; i < forms.length; i++) {
+                if (hasPasswordField(forms[i])) {
+                    loadData2Form(forms[i]);
+                    return;
+                }
+            }
+            alert("No Credentials Form found");
+        }
+
+        fillFirstForm()
+    """.splitlines()) % (simplejson.dumps(username), simplejson.dumps(password))
+
+
+if __name__ == '__main__':
+    try:
+        name, pw = run_keepassxc_query(args.url)
+        if name and pw:
+            qute('jseval -q ' + make_js_code(name, pw))
+    except Exception as e:
+        error(str(e))
+
