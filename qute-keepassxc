@@ -115,7 +115,7 @@ class KeepassXC:
         self.send_msg(dict(
             action = 'get-logins',
             url    = url,
-            keys   = [{ 'id': self.id, 'key': base64.b64encode(self.my_privkey.public_key.encode()).decode('utf-8') }]
+            keys   = [{ 'id': self.id, 'key': base64.b64encode(self.ep_privkey.public_key.encode()).decode('utf-8') }]
         ))
         return self.recv_msg()['entries']
 
