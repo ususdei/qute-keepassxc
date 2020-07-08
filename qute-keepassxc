@@ -246,11 +246,15 @@ def make_js_code(username, password):
                 if (isVisible(input) && (input.type == "text" || input.type == "email")) {
                     input.focus();
                     input.value = %s;
+                    input.dispatchEvent(new Event('input', { 'bubbles': true }));
+                    input.dispatchEvent(new Event('change', { 'bubbles': true }));
                     input.blur();
                 }
                 if (input.type == "password") {
                     input.focus();
                     input.value = %s;
+                    input.dispatchEvent(new Event('input', { 'bubbles': true }));
+                    input.dispatchEvent(new Event('change', { 'bubbles': true }));
                     input.blur();
                 }
             }
