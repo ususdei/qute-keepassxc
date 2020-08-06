@@ -24,7 +24,7 @@ if 'QUTE_FIFO' not in os.environ:
 def parse_args():
     parser = argparse.ArgumentParser(description="Full passwords from KeepassXC")
     parser.add_argument('url', nargs='?', default=os.environ.get('QUTE_URL'))
-    parser.add_argument('--socket', '-s', default='/run/user/{}/kpxc_server'.format(os.getuid()),
+    parser.add_argument('--socket', '-s', default='/run/user/{}/org.keepassxc.KeePassXC.BrowserServer'.format(os.getuid()),
                         help='Path to KeepassXC browser socket')
     parser.add_argument('--key', '-k', default='alice@example.com',
                         help='GPG key to encrypt KeepassXC auth key with')
