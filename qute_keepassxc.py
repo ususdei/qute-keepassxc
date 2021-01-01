@@ -274,12 +274,14 @@ def make_js_code(username, password):
         fillFirstForm()
     """.splitlines()) % (simplejson.dumps(username), simplejson.dumps(password))
 
-
-if __name__ == '__main__':
+def main():
     try:
         name, pw = run_keepassxc_query(args.url)
         if name and pw:
             qute('jseval -q ' + make_js_code(name, pw))
     except Exception as e:
         error(str(e))
+
+if __name__ == '__main__':
+    main()
 

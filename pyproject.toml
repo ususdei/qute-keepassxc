@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "qute-keepassxc"
+version = "0.1.0"
+description = "KeepassXC integration for the Qutebrowser as user script"
+authors = ["Markus Blöchl"]
+license = "MIT"
+packages = [{ include = "qute_keepassxc.py" }]
+
+[tool.poetry.dependencies]
+python = "^3.7.1"
+simplejson = "^3.17.2"
+pynacl = "^1.4.0"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.scripts]
+qute-keepassxc = "qute_keepassxc:main"
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

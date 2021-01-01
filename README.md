@@ -16,7 +16,7 @@ Second, you must make sure to have a working private-public-key-pair in your [GP
 
 
 Then, simply check out this repository and, if you do not want to configure an explicit path, symlink the
-`qute-keepassxc` to your `~/.local/share/qutebrowser/userscripts/qute-keepassxc`.
+`qute_keepassxc.py` to your `~/.local/share/qutebrowser/userscripts/qute-keepassxc`.
 Install the python modules `simplejson` and `pynacl`.
 Make sure `qute-keepassxc` is executable.
 
