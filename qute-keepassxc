@@ -17,10 +17,6 @@ import nacl.utils
 import nacl.public
 
 
-if 'QUTE_FIFO' not in os.environ:
-    print("No QUTE_FIFO found")
-    sys.exit(-1)
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Full passwords from KeepassXC")
     parser.add_argument('url', nargs='?', default=os.environ.get('QUTE_URL'))
@@ -31,8 +27,6 @@ def parse_args():
     parser.add_argument('--insecure', action='store_true',
                         help="Do not encrypt auth key")
     return parser.parse_args()
-
-args = parse_args()
 
 
 class KeepassError(Exception):
@@ -188,9 +182,8 @@ def error(msg):
     qute('message-error "{}"'.format(msg))
 
 
-def run_keepassxc_query(url):
+def connect_to_keepassxc(args):
     assert args.key or args.insecure, "Missing GPG key to use for auth key encryption"
-    assert url, "Missing URL"
     keystore = SecretKeyStore(args.key)
     if os.path.isfile(keystore.path):
         keystore.load()
@@ -198,7 +191,7 @@ def run_keepassxc_query(url):
         kp.connect()
         if not kp.test_associate():
             error('No KeepassXC association')
-            return None, None
+            return None
     else:
         keystore.create()
         kp = KeepassXC(key=keystore.key, socket_path=args.socket)
@@ -206,14 +199,9 @@ def run_keepassxc_query(url):
         kp.associate()
         if not kp.test_associate():
             error('No KeepassXC association')
-            return None, None
+            return None
         keystore.store(kp.id)
-    creds = kp.get_logins(url)
-    if not creds:
-        error('No credentials found')
-        return None, None
-    # TODO: handle multiple matches
-    return (creds[0]['login'], creds[0]['password'])
+    return kp
 
 
 def make_js_code(username, password):
@@ -275,11 +263,30 @@ def make_js_code(username, password):
     """.splitlines()) % (simplejson.dumps(username), simplejson.dumps(password))
 
 
-if __name__ == '__main__':
+def main():
+    if 'QUTE_FIFO' not in os.environ:
+        print(f"No QUTE_FIFO found - {sys.argv[0]} must be run as a qutebrowser userscript")
+        sys.exit(-1)
+
     try:
-        name, pw = run_keepassxc_query(args.url)
+        args = parse_args()
+        assert args.url, "Missing URL"
+        kp = connect_to_keepassxc(args)
+        if not kp:
+            error('Could not connect to KeepassXC')
+            return
+        creds = kp.get_logins(args.url)
+        if not creds:
+            error('No credentials found')
+            return
+        # TODO: handle multiple matches
+        name, pw = creds[0]['login'], creds[0]['password']
         if name and pw:
             qute('jseval -q ' + make_js_code(name, pw))
     except Exception as e:
         error(str(e))
+
+
+if __name__ == '__main__':
+    main()
 
