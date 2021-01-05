@@ -7,11 +7,10 @@
 import sys
 import os
 import socket
+import json
 import base64
 import subprocess
 import argparse
-
-import simplejson
 
 import nacl.utils
 import nacl.public
@@ -114,17 +113,17 @@ class KeepassXC:
         return self.recv_msg()['entries']
 
     def send_raw_msg(self, msg):
-        self.sock.send( simplejson.dumps(msg).encode('utf-8') )
+        self.sock.send( json.dumps(msg).encode('utf-8') )
 
     def recv_raw_msg(self):
-        return simplejson.loads( self.sock.recv(4096).decode('utf-8') )
+        return json.loads( self.sock.recv(4096).decode('utf-8') )
 
     def send_msg(self, msg, **extra):
         nonce = nacl.utils.random(nacl.public.Box.NONCE_SIZE)
         self.send_raw_msg(dict(
             action   = msg['action'],
-            message  = base64.b64encode(self.cryptobox.encrypt(simplejson.dumps(msg).encode('utf-8'), nonce).ciphertext),
-            nonce    = base64.b64encode(nonce),
+            message  = base64.b64encode(self.cryptobox.encrypt(json.dumps(msg).encode('utf-8'), nonce).ciphertext).decode('utf-8'),
+            nonce    = base64.b64encode(nonce).decode('utf-8'),
             clientID = self.client_id,
             **extra
         ))
@@ -134,7 +133,7 @@ class KeepassXC:
         if 'error' in resp:
             raise KeepassError(resp['errorCode'], resp['error'])
         assert resp['action']
-        return simplejson.loads(self.cryptobox.decrypt(base64.b64decode(resp['message']), base64.b64decode(resp['nonce'])))
+        return json.loads(self.cryptobox.decrypt(base64.b64decode(resp['message']), base64.b64decode(resp['nonce'])).decode('utf-8'))
 
 
 
@@ -149,10 +148,10 @@ class SecretKeyStore:
     def load(self):
         "Load existing association key from file"
         if self.gpgkey is None:
-            json = open(self.path, 'r').read()
+            jsondata = open(self.path, 'r').read()
         else:
-            json = subprocess.check_output(['gpg', '--decrypt', self.path])
-        data = simplejson.loads(json)
+            jsondata = subprocess.check_output(['gpg', '--decrypt', self.path]).decode('utf-8')
+        data = json.loads(jsondata)
         self.id = data['id']
         self.key = base64.b64decode(data['key'])
 
@@ -164,11 +163,11 @@ class SecretKeyStore:
     def store(self, id):
         "Store newly created association key in file"
         self.id = id
-        json = simplejson.dumps({'id':self.id, 'key':base64.b64encode(self.key)}).encode('utf-8')
+        jsondata = json.dumps({'id':self.id, 'key':base64.b64encode(self.key).decode('utf-8')})
         if self.gpgkey is None:
-            open(self.path, "w").write(json)
+            open(self.path, "w").write(jsondata)
         else:
-            subprocess.run(['gpg', '--encrypt', '-o', self.path, '-r', self.gpgkey], input=json, check=True)
+            subprocess.run(['gpg', '--encrypt', '-o', self.path, '-r', self.gpgkey], input=jsondata.encode('utf-8'), check=True)
 
 
 def qute(cmd):
@@ -260,7 +259,7 @@ def make_js_code(username, password):
         }
 
         fillFirstForm()
-    """.splitlines()) % (simplejson.dumps(username), simplejson.dumps(password))
+    """.splitlines()) % (json.dumps(username), json.dumps(password))
 
 
 def main():
