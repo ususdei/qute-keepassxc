@@ -215,28 +215,30 @@ def make_js_code(username, password):
 
             return elem.offsetWidth > 0 && elem.offsetHeight > 0;
         };
+
         function hasPasswordField(form) {
             var inputs = form.getElementsByTagName("input");
             for (var j = 0; j < inputs.length; j++) {
                 var input = inputs[j];
-                if (input.type == "password") {
+                if (input.type === "password") {
                     return true;
                 }
             }
             return false;
         };
+
         function loadData2Form (form) {
             var inputs = form.getElementsByTagName("input");
             for (var j = 0; j < inputs.length; j++) {
                 var input = inputs[j];
-                if (isVisible(input) && (input.type == "text" || input.type == "email")) {
+                if (isVisible(input) && (input.type === "text" || input.type === "email")) {
                     input.focus();
                     input.value = %s;
                     input.dispatchEvent(new Event('input', { 'bubbles': true }));
                     input.dispatchEvent(new Event('change', { 'bubbles': true }));
                     input.blur();
                 }
-                if (input.type == "password") {
+                if (input.type === "password") {
                     input.focus();
                     input.value = %s;
                     input.dispatchEvent(new Event('input', { 'bubbles': true }));
@@ -255,7 +257,7 @@ def make_js_code(username, password):
                 }
             }
             alert("No Credentials Form found");
-        }
+        };
 
         fillFirstForm()
     """.splitlines()) % (json.dumps(username), json.dumps(password))
