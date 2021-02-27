@@ -81,7 +81,7 @@ Links
 [3]: https://gnupg.org/
 [4]: https://github.com/keepassxreboot/keepassxc-browser/blob/develop/keepassxc-protocol.md
 [5]: https://github.com/qutebrowser/qutebrowser/blob/master/doc/userscripts.asciidoc
-[6]: https://keepassxc.org/docs/keepassxc-browser-migration/
+[6]: https://keepassxc.org/docs/KeePassXC_GettingStarted.html#_configure_keepassxc_browser
 
 
 License
