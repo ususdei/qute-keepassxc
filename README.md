@@ -32,6 +32,8 @@ config.bind('pw', 'spawn --userscript qute-keepassxc --key ABC1234', mode='norma
 
 If you did not symlink `qute-keepassxc` you need to provide the full path here.
 
+N.B. To manage multiple accounts you need the [rofi](https://github.com/davatorium/rofi) program.
+
 
 Usage
 =====
