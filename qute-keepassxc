@@ -202,6 +202,25 @@ def connect_to_keepassxc(args):
     return kp
 
 
+def select_account(creds):
+    try:
+        if len(creds) == 1:
+            return creds[0]
+        idx = subprocess.check_output(
+                ['rofi', '-dmenu', '-format', 'i', '-matching', 'fuzzy',
+                '-p', 'Search',
+                '-mesg', '<b>qute-keepassxc</b>: select an account, please!'],
+                input=b"\n".join(c['login'].encode('utf-8') for c in creds)
+        )
+        idx = int(idx)
+        if idx < 0:
+            return None
+        return creds[idx]
+    except e:
+        error(f"Error while picking account: {e}")
+        return creds[0]
+
+
 def make_js_code(username, password):
     return ' '.join("""
         function isVisible(elem) {
@@ -262,34 +281,6 @@ def make_js_code(username, password):
         fillFirstForm()
     """.splitlines()) % (json.dumps(username), json.dumps(password))
 
-def get_account(creds):
-    """
-    Run rofi with a list of usernames taken from the argument creds.
-    Return the index of the username chosen.
-    """
-    index = 0  # first account if the user press ESC or rofi is not installed
-    # check if rofi is installed
-    status, output = subprocess.getstatusoutput('rofi')
-    if status != 0:
-        error("Multiple accounts. Install the rofi program, please!")
-        return index
-    # run rofi
-    with subprocess.Popen(
-            ['rofi', '-dmenu', '-format', 'i',
-            '-lines', str(len(creds)), '-p', 'Search',
-            # '-no-config',
-            '-mesg', '<b>qute-keepassxc</b>: select an account, please!'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=None) as rofi:
-        # send username list to rofi
-        for cred in creds:
-            rofi.stdin.write(b"%s\n" % (cred['login'].encode('utf-8')))
-        rofi.stdin.close()
-        output = rofi.stdout.read()
-        if output:
-            index = int(output)
-    return index
 
 def main():
     if 'QUTE_FIFO' not in os.environ:
@@ -307,11 +298,11 @@ def main():
         if not creds:
             error('No credentials found')
             return
-        # handle multiple matches
-        index = 0
-        if len(creds) > 1:
-            index = get_account(creds)
-        name, pw = creds[index]['login'], creds[index]['password']
+        cred = select_account(creds)
+        if not cred:
+            error('No credentials selected')
+            return
+        name, pw = cred['login'], cred['password']
         if name and pw:
             qute('jseval -q ' + make_js_code(name, pw))
     except Exception as e:
