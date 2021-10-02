@@ -216,9 +216,14 @@ def select_account(creds):
         if idx < 0:
             return None
         return creds[idx]
-    except e:
-        error(f"Error while picking account: {e}")
+    except subprocess.CalledProcessError:
+        return None
+    except FileNotFoundError:
+        error("rofi not found. Please install rofi to select from multiple credentials")
         return creds[0]
+    except Exception as e:
+        error(f"Error while picking account: {e}")
+        return None
 
 
 def make_js_code(username, password):
