@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Qutebrowser userscript to fetch credentials from KeepassXC password database
-# Copyright (c) 2018 Markus Blöchl
+# Copyright (c) 2018-2021 Markus Blöchl
 # Released under the MIT License
 
 import sys

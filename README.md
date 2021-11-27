@@ -58,14 +58,35 @@ Therefore you need to have a public-key-pair readily set up.
 GPG might then ask for your private-key passwort whenever you query the database for login credentials.
 
 
+TOTP
+====
+
+This script recently received experimental TOTP support.
+To use it, you need to have working TOTP authentication within KeepassXC.
+Then call `qute-keepassxc` with the `--totp` flags.
+
+For example, I have the following line in my `config.py`:
+
+```python
+config.bind('pt', 'spawn --userscript qute-keepassxc --key ABC1234 --totp', mode='normal')
+```
+
+For now this script will simply insert the TOTP-token into the currently selected
+input field, since I have not yet found a reliable way to identify the correct field
+within all existing login forms.
+Thus you need to manually select the TOTP input field, press escape to leave input
+mode and then enter `pt` to fill in the token (or configure another key-binding for
+insert mode if you prefer that).
+
+
 Compatiblity
 ============
 
 Tested with:
 
- - KeepassXC 2.3.4
- - qutebrowser v1.5.2
- - python 3.7.1
+ - KeepassXC 2.6.6
+ - qutebrowser v2.4.0
+ - python 3.9.7
 
 
 Links
@@ -89,5 +110,5 @@ Links
 License
 =======
 
-Copyright (c) 2018, Markus Blöchl. Released under the MIT License.
+Copyright (c) 2018-2021, Markus Blöchl. Released under the MIT License.
 
