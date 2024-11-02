@@ -1,13 +1,11 @@
 
 
-Introduction
-===========
+# Introduction
 
 This is a [qutebrowser][2] [userscript][5] to fill website credentials from a [KeepassXC][1] password database.
 
 
-Installation
-============
+# Installation
 
 First, you need to enable [KeepassXC-Browser][6] extensions in your KeepassXC config.
 
@@ -35,8 +33,7 @@ If you did not symlink `qute-keepassxc` you need to provide the full path here.
 N.B. To manage multiple accounts you need the [rofi](https://github.com/davatorium/rofi) program.
 
 
-Usage
-=====
+# Usage
 
 If you are on a webpage with a login form, simply activate one of the configured key-bindings.
 
@@ -44,8 +41,7 @@ The first time you run this script, KeepassXC will ask you for authentication li
 Just provide a name of your choice and accept the request if nothing looks fishy.
 
 
-How it works
-============
+# How it works
 
 This script will talk to KeepassXC using the native [KeepassXC-Browser protocol][4].
 
@@ -55,11 +51,10 @@ Unlike most browser extensions which only use plain local storage, this one atte
 by storing the key in encrypted form using GPG.
 Therefore you need to have a public-key-pair readily set up.
 
-GPG might then ask for your private-key passwort whenever you query the database for login credentials.
+GPG might then ask for your private-key password whenever you query the database for login credentials.
 
 
-TOTP
-====
+# TOTP
 
 This script recently received experimental TOTP support.
 To use it, you need to have working TOTP authentication within KeepassXC.
@@ -79,25 +74,14 @@ mode and then enter `pt` to fill in the token (or configure another key-binding 
 insert mode if you prefer that).
 
 
-Compatiblity
-============
+# Compatiblity
 
 Tested with:
 
- - KeepassXC 2.6.6
- - qutebrowser v2.4.0
- - python 3.9.7
+ - KeepassXC 2.7.9
+ - qutebrowser v3.3.1
+ - python 3.12.7
 
-
-Links
-=====
-
- - https://keepassxc.org
- - https://qutebrowser.org
- - https://gnupg.org
- - https://github.com/keepassxreboot/keepassxc-browser/blob/develop/keepassxc-protocol.md
- - https://github.com/qutebrowser/qutebrowser/blob/master/doc/userscripts.asciidoc
- - https://keepassxc.org/docs/keepassxc-browser-migration
 
 [1]: https://keepassxc.org/
 [2]: https://qutebrowser.org/
@@ -107,8 +91,7 @@ Links
 [6]: https://keepassxc.org/docs/KeePassXC_GettingStarted.html#_configure_keepassxc_browser
 
 
-License
-=======
+# License
 
-Copyright (c) 2018-2021, Markus Blöchl. Released under the MIT License.
+Copyright (c) 2018-2024, Markus Blöchl. Released under the MIT License.
 
