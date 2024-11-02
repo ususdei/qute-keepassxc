@@ -73,6 +73,16 @@ Thus you need to manually select the TOTP input field, press escape to leave inp
 mode and then enter `pt` to fill in the token (or configure another key-binding for
 insert mode if you prefer that).
 
+# Autotype
+
+This script theoretically supports requesting a Keepass Autotype sequence for the current URL.
+Unfortunately this does not seem to work under wayland yet so it is still completely untested.
+
+Example config:
+
+```python
+config.bind('<Alt-Shift-a>', 'spawn --userscript qute-keepassxc --key ABC1234 --autotype', mode='insert')
+```
 
 # Compatiblity
 

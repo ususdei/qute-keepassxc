@@ -21,6 +21,8 @@ def parse_args():
     parser.add_argument('url', nargs='?', default=os.environ.get('QUTE_URL'))
     parser.add_argument('--totp', action='store_true',
                         help="Fill in current TOTP field instead of username/password")
+    parser.add_argument('--autotype', action='store_true',
+                        help="Request autotype from KeepassXC")
     parser.add_argument('--socket', '-s', default='/run/user/{}/org.keepassxc.KeePassXC.BrowserServer'.format(os.getuid()),
                         help='Path to KeepassXC browser socket')
     parser.add_argument('--key', '-k', default='alice@example.com',
@@ -112,6 +114,14 @@ class KeepassXC:
             keys   = [{ 'id': self.id, 'key': base64.b64encode(self.id_key.public_key.encode()).decode('utf-8') }]
         ))
         return self.recv_msg()['entries']
+
+    def request_autotype(self, url):
+        self.send_msg(dict(
+            action = 'request-autotype',
+            search = url
+        ))
+        response = self.recv_msg()
+        return (response['success'] == 'true')
 
     def send_raw_msg(self, msg):
         self.sock.send( json.dumps(msg).encode('utf-8') )
@@ -320,6 +330,10 @@ def main():
         kp = connect_to_keepassxc(args)
         if not kp:
             error('Could not connect to KeepassXC')
+            return
+        if args.autotype:
+            if not kp.request_autotype(args.url):
+                error("Autotype request failed")
             return
         creds = kp.get_logins(args.url)
         if not creds:
