@@ -113,16 +113,6 @@ class KeepassXC:
         ))
         return self.recv_msg()['entries']
 
-    def get_totp(self, uuid):
-        self.send_msg(dict(
-            action = 'get-totp',
-            uuid = uuid
-        ))
-        response = self.recv_msg()
-        if response['success'] != 'true' or not response['totp']:
-            return None
-        return response['totp']
-
     def send_raw_msg(self, msg):
         self.sock.send( json.dumps(msg).encode('utf-8') )
 
@@ -335,8 +325,7 @@ def main():
             error('No credentials selected')
             return
         if args.totp:
-            uuid = cred['uuid']
-            totp = kp.get_totp(uuid)
+            totp = cred.get('totp')
             if not totp:
                 error('No TOTP key found')
                 return
