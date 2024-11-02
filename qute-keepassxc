@@ -242,12 +242,17 @@ def make_js_code(username, password):
             return elem.offsetWidth > 0 && elem.offsetHeight > 0;
         };
 
-        function hasPasswordField(form) {
+        function hasPasswordOrUsernameField(form) {
             var inputs = form.getElementsByTagName("input");
             for (var j = 0; j < inputs.length; j++) {
                 var input = inputs[j];
                 if (input.type === "password") {
                     return true;
+                }
+                if (input.type === "text" || input.type === "email") {
+                    if (input.autocomplete && input.autocomplete.includes("username")) {
+                        return true;
+                    }
                 }
             }
             return false;
@@ -277,7 +282,7 @@ def make_js_code(username, password):
         function fillFirstForm() {
             var forms = document.getElementsByTagName("form");
             for (i = 0; i < forms.length; i++) {
-                if (hasPasswordField(forms[i])) {
+                if (hasPasswordOrUsernameField(forms[i])) {
                     loadData2Form(forms[i]);
                     return;
                 }
