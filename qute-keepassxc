@@ -27,6 +27,9 @@ def parse_args():
                         help='GPG key to encrypt KeepassXC auth key with')
     parser.add_argument('--insecure', action='store_true',
                         help="Do not encrypt auth key")
+    parser.add_argument('--connection', '-c', default='keepassxc.key',
+                        help='basename of the KeepassXC connection file')
+
     return parser.parse_args()
 
 
@@ -139,12 +142,14 @@ class KeepassXC:
 
 
 class SecretKeyStore:
-    def __init__(self, gpgkey):
+    def __init__(self, gpgkey, connection):
         self.gpgkey = gpgkey
+        self.connection = connection
+        self.encrypted_connection = connection + '.gpg'
         if gpgkey is None:
-            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], 'keepassxc.key')
+            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], self.connection)
         else:
-            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], 'keepassxc.key.gpg')
+            self.path = os.path.join(os.environ['QUTE_DATA_DIR'], self.encrypted_connection)
 
     def load(self):
         "Load existing association key from file"
@@ -184,7 +189,7 @@ def error(msg):
 
 def connect_to_keepassxc(args):
     assert args.key or args.insecure, "Missing GPG key to use for auth key encryption"
-    keystore = SecretKeyStore(args.key)
+    keystore = SecretKeyStore(args.key, args.connection)
     if os.path.isfile(keystore.path):
         keystore.load()
         kp = KeepassXC(keystore.id, key=keystore.key, socket_path=args.socket)
