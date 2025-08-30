@@ -15,6 +15,8 @@ import argparse
 import nacl.utils
 import nacl.public
 
+BUFFER_SIZE = 1024 * 1024
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Full passwords from KeepassXC")
@@ -117,7 +119,7 @@ class KeepassXC:
         self.sock.send( json.dumps(msg).encode('utf-8') )
 
     def recv_raw_msg(self):
-        return json.loads( self.sock.recv(4096).decode('utf-8') )
+        return json.loads( self.sock.recv(BUFFER_SIZE).decode('utf-8') )
 
     def send_msg(self, msg, **extra):
         nonce = nacl.utils.random(nacl.public.Box.NONCE_SIZE)
